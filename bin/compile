@@ -107,21 +107,6 @@ install_bins() {
   fi
   echo ""
   
-  if [ "$GIT_SSH_KEY" != "" ]; then   
-    echo "Detected SSH key for git.  launching ssh-agent and loading key"
-    echo $GIT_SSH_KEY | base64 --decode > id_rsa
-    # launch ssh-agent, we'll use it to serve our ssh key
-    # and kill it towards the end of the buildpack's run
-    eval `ssh-agent -s`
-    # We're not supporting passphrases at this time.  We could pull that in
-    # from config as well, but then we'd have to setup expect or some other
-    # terminal automation tool to feed it into ssh-add.
-    ssh-add id_rsa
-    rm id_rsa
-    # Add github to the list of known hosts - ignore the warning or else set -e will abort the deployment
-    ssh -oStrictHostKeyChecking=no -T git@github.com || true
-  fi 
-
   if [ -n "$iojs_engine" ]; then
     warn_node_engine "$iojs_engine"
     install_iojs "$iojs_engine" "$BUILD_DIR/.heroku/node"
@@ -152,6 +137,26 @@ install_bins() {
 
 header "Installing binaries"
 install_bins | output "$LOG_FILE"
+
+install_github() {
+  if [ "$GIT_SSH_KEY" != "" ]; then   
+    echo "Detected SSH key for git.  launching ssh-agent and loading key"
+    echo $GIT_SSH_KEY | base64 --decode > id_rsa
+    # launch ssh-agent, we'll use it to serve our ssh key
+    # and kill it towards the end of the buildpack's run
+    eval `ssh-agent -s`
+    # We're not supporting passphrases at this time.  We could pull that in
+    # from config as well, but then we'd have to setup expect or some other
+    # terminal automation tool to feed it into ssh-add.
+    ssh-add id_rsa
+    rm id_rsa
+    # Add github to the list of known hosts - ignore the warning or else set -e will abort the deployment
+    ssh -oStrictHostKeyChecking=no -T git@github.com || true
+  fi 
+}
+
+header "Installing Github certificate"
+install_github | output "$LOG_FILE"
 
 restore_cache() {
   local cache_status="$(get_cache_status)"
